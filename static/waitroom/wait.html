@@ -1,0 +1,48 @@
+ <!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+	<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+    <title>Waiting</title>
+	  
+	 <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+	  
+	<script>
+		
+		var token = window.location.search;
+		token = token.replace("?", '');
+		
+	  
+	  var app = angular.module("waitapp", []);
+    app.controller("control",function($scope,$http,$interval)
+          {  
+				$scope.text = "";
+				$scope.logged = true;
+		
+		         $scope.ready = function(){
+					 $http.get("http://localhost:8080/waiting/wait",{headers: {'Authorization': token}}).then(function(response) {
+		  	 		 $scope.text = response.data;
+					 $scope.logged = ($scope.text != "Log-in first");
+					 }, function myError(response) {			 
+						console.error(response);        			
+                	 });
+					 if($scope.text == "start")
+					 	window.location.replace("http://localhost:8080/game?"+ token);
+				 };
+		
+				 $scope.loggedin= function(){
+					return $scope.logged;
+				 };
+				
+	  
+				 $interval($scope.ready,500);
+		  });
+	</script>  
+	 
+  </head>
+  <body ng-app="waitapp" ng-controller="control" ng-init ="ready()">
+     <h1>{{text}}</h1>
+	  <img src="waitroom/wait.png" ng-show ="loggedin()">
+	  <img src="waitroom/login.png" ng-show ="!loggedin()">
+  </body>
+</html>

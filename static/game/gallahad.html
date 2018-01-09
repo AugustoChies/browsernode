@@ -1,0 +1,468 @@
+ <!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+<title>Gallahad</title>
+
+<script src = "phaser.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>    	
+<style>
+	 #bar{
+            display: flex;
+            flex-wrap: wrap;
+            width: 550px;
+            height: 105px;
+         }
+    .item{
+            width: 50px;
+            height: 105px;
+            margin: 0px;
+			border: 1px solid black;
+        }   
+	
+</style>
+
+<script>
+	
+	var token = window.location.search;
+		token = token.replace("?", '');
+	
+	var app = angular.module("game", []);
+    app.controller("control",function($scope,$interval,$http,$log)
+          {  
+			 $scope.forsimulator = [1,2,3,4,5,6,7,8,9,10];       
+		     $scope.mydistance = 0;
+		     $scope.enemyDistance = 0;
+			 $scope.myposition = 0;
+	  	     var game = new Phaser.Game(800, 600, Phaser.AUTO, 'gamediv', { preload: preload, create: create, update: update });
+	  	     var score_view = 0;
+	  	     var timer = 0;
+	  	     var bulletControl = 0;
+	  	     var scoreText;
+	  	     var bullet;
+	  	     var inimigoCounter = 0;
+			 var isDead = false;
+			 var bulletdelay = 10;
+			 var enemydelay = 20;
+			 var speed= 150;
+			 $scope.error = "";
+			 var logado=true;
+			 var windistance =1000;
+		
+             			
+		     function preload() {
+			 	game.load.spritesheet('nave1', 'assets/nave1.png', 32, 32);
+			 	game.load.spritesheet('nave2', 'assets/nave2.png', 32, 32);
+			 	game.load.spritesheet('inimigo1', 'assets/inimigo1.png', 32, 32);
+			 	game.load.spritesheet('bullet', 'assets/bullet.png', 20, 20);
+			 	game.load.image('star', 'assets/star.png', 8, 8);
+				game.load.image('gameOver', 'assets/ded.png', 800, 600);
+				game.load.image('youWin', 'assets/yay.png', 800, 600);
+				game.load.image('loginimg', 'assets/login.png', 800, 600);
+			 }
+
+	         function create() {
+	                scoreText = game.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#FFFFFF' });
+	                
+	                game.physics.startSystem(Phaser.Physics.ARCADE);
+	                
+	                stars = game.add.group();
+	                game.physics.arcade.enable(stars);
+	                stars.enableBody = true;
+	                for (var i = 0; i < 50; i++)
+	                {
+	                	var s = stars.create(game.world.randomX, Math.random() * 600, 'star', game.rnd.integerInRange(0, 36));
+	                	s.name = 'star' + i;
+	                	s.body.immovable = true;
+	                }
+	
+	                player = game.add.sprite(32, game.world.height - 300, 'nave1');
+	                game.physics.arcade.enable(player);
+	                player.body.collideWorldBounds = true;
+	                player.animations.add('move', [0, 1], 10, true);
+	                
+	                cursors = game.input.keyboard.createCursorKeys();
+	                
+	                bullets = game.add.group();
+	                bullets.enableBody = true;
+	                game.physics.arcade.enable(bullets);
+	                for (var i = 0; i < 20; i++)
+	                {
+	                	var b = bullets.create(0, 0, 'bullet');
+	                	b.name = 'bullet' + i;
+	                	b.exists = false;
+	                	b.visible = false;
+	                	b.checkWorldBounds = true;
+	                	b.events.onOutOfBounds.add(resetBullet, this);
+	                }
+	                
+	                inimigos = game.add.group();
+	                //var inimigo = inimigos.create(400, 300, 'inimigo1');
+	                game.physics.arcade.enable(inimigos);
+	                inimigos.enableBody = true;
+	                //inimigos.animations.add('moveI', [0, 1], 10, true);
+	                /*for (var i = 0; i < 50; i++)
+	                {
+	                	var c = inimigos.create(game.world.randomX, Math.random() * 500, 'inimigo1', game.rnd.integerInRange(0, 36));
+	                	c.name = 'ini' + i;
+	                	c.body.immovable = true;
+	                }*/
+			 }
+		
+			 function update() {
+		
+					 //  Reset the players velocity (movement)
+					player.body.velocity.x = 0;
+					player.body.velocity.y = 0;
+					
+					player.animations.play('move');
+					
+					game.physics.arcade.overlap(bullets, inimigos, mataInimigo, null, this);
+					game.physics.arcade.overlap(player, inimigos, mataPlayer, null, this);
+
+					if (cursors.left.isDown)
+					{
+						//  Move to the left
+						player.body.velocity.x = -1 * speed;
+					}
+					if (cursors.right.isDown)
+					{
+						//  Move to the right
+						player.body.velocity.x = speed;
+					}
+					if (cursors.up.isDown)
+					{
+						//  Move up
+						player.body.velocity.y = -2 * speed;
+					}
+					if (cursors.down.isDown)
+					{
+						//  Move down
+						player.body.velocity.y = speed * 2;
+					}
+					if (game.input.keyboard.isDown(Phaser.Keyboard.S))
+					{
+						if(bulletControl > bulletdelay)
+						{
+							disparar();
+						}
+					}
+				 
+				 
+				 	
+					
+
+					/*var c = inimigos.create(game.world.randomX, Math.random() * 500, 'inimigo1', game.rnd.integerInRange(0, 36));
+					c.name = 'ini' + inimigoCounter;
+					c.body.immovable = true;*/
+					$scope.myposition = player.position.x;
+					
+					
+						score_view = Math.round($scope.mydistance);
+						scoreText.text = 'Score: ' + score_view;
+					
+					
+					if(timer % enemydelay == 0)
+					{
+						var c = inimigos.create(800, Math.random() * 600, 'inimigo1', game.rnd.integerInRange(0, 36));
+						//c.name = 'ini' + inimigoCounter;
+						c.body.immovable = true;
+					}
+					
+					inimigos.forEachAlive(IA, this);
+					inimigos.forEachAlive(evitaQueOPcExplodaDeTantosInimigosNoJogo, this);
+					stars.forEachAlive(backG, this);
+					
+					timer++;
+					bulletControl++;
+					//inimigoCounter++;
+				 
+				 	if ($scope.mydistance >= windistance && isDead == false)
+					{
+						vencer(player);
+					}
+			 }
+	
+		 	 function resetBullet (bullet) {
+
+		    	  bullet.kill();
+				
+			  }
+	
+			 function disparar () {
+	
+				  bullet = bullets.getFirstExists(false);
+				  
+				  if (bullet)
+				  {
+					  bullet.reset(player.position.x + 35, player.position.y + 6);
+					  bullet.body.velocity.x = 350;
+					  bulletControl = 0;
+				  }
+			 }
+	
+		     function mataInimigo (bullet, ini) {
+		
+			 	bullet.kill();
+			 	ini.kill();
+			 }
+	
+			 function IA (inimigo) { 
+		
+			    	inimigo.body.velocity.x = ((player.position.x/2) * 4 + 50) * -1;
+			  }
+	
+			 function mataPlayer(P){
+			 
+				 P.kill();
+				 game.add.sprite(0, 0, 'gameOver');
+				 isDead = true;				
+			 }
+	 
+			 function vencer (P)
+				{
+					P.kill();
+					game.add.sprite(0, 0, 'youWin');
+				}
+		
+			 function notlogged (P)
+				{
+					P.kill();
+					if(!isDead)
+						{
+							game.add.sprite(0, 0, 'loginimg');
+						}
+					logado=false;
+				}
+			 function backG(G) {
+	
+					G.body.velocity.x = ((player.position.x/2) * 7 + 100) * -1;
+					if(G.position.x <= 0)
+					{
+						G.x = 800;
+					}
+	          }
+	
+			 function evitaQueOPcExplodaDeTantosInimigosNoJogo (ini) {
+		
+				  if(ini.position.x <= 0)
+				  {
+					  ini.kill();
+				  }
+	          }
+			
+			 $scope.endGame= function(){
+				 console.log("chamei");
+				 if(logado)
+					{
+				  		var data = {
+						  	"end": true
+				  		};
+						$http({
+							"method": 'POST',
+							"url": "http://localhost:8080/game/ender",
+							"headers": {'Content-Type': 'application/json', 'Authorization': token},
+							"data": data
+						}).then(function(response) {
+							if(response.data == "notlog")
+								notlogged(player);
+							else if(response.data == "accepted")
+								logado=false;
+		   				});
+					}
+			 };
+		     
+			 	
+         	 
+			 $scope.getInfo = function(){
+				 if(logado)
+					 {
+						 $http.get("http://localhost:8080/game/usuario",{headers: {'Authorization': token}}).then(function(response) {
+							 if(response.data == "notlog")
+							 {
+								 notlogged(player);
+							 }
+							 else
+							 {
+								 $scope.mydistance = response.data.distance;
+								 $scope.enemyDistance=response.data.distance_opponent;
+								 if(response.data.enemy_dead)
+									 {
+										 vencer(player);
+										 $scope.endGame();
+									 }
+								  else if($scope.enemyDistance >= windistance)
+								  {
+									  mataPlayer(player); 
+									  $scope.endGame();
+							      }
+									 
+							 }
+						 }, function myError(response) {			 
+							 console.error(response);        			
+						 });
+					 }
+	    	 };
+		
+		
+			$scope.sendInfo= function(){
+				if(logado)
+					{
+				  		var data = {
+						  	"pos": $scope.myposition,
+							"dead": isDead
+				  		};
+						$http({
+							"method": 'POST',
+							"url": "http://localhost:8080/game/usuario",
+							"headers": {'Content-Type': 'application/json', 'Authorization': token},
+							"data": data
+						}).then(function(response) {
+							if(response.data == "notlog")
+								notlogged(player);
+		   				});
+					}
+			 };
+		
+			 $scope.getRules = function(){
+				 if(logado)
+					 {
+						 $http.get("http://localhost:8080/game/rules").then(function(response) {
+							 enemydelay = response.data.enemycounter;
+							 bulletdelay = response.data.bulletcounter;
+							 speed = response.data.playerspeed;
+							 windistance = response.data.windistance;
+						 }, function myError(response) {			 
+							 console.error(response);        			
+						 });
+					 }
+			  };
+		    	
+		     
+		
+			  $interval($scope.getInfo,100);
+			  $interval($scope.sendInfo,200);
+		      $interval($scope.getRules,1000);
+				
+		
+			 $scope.testeshowmy= function(posicao){
+				 switch(posicao){
+					 case 0:
+						 return ($scope.mydistance < 100)
+						 break;
+						 
+				     case 1:
+						 return ($scope.mydistance >= 100 && $scope.mydistance < 200)
+						 break;
+						
+					 case 2:
+						 return ($scope.mydistance >= 200 && $scope.mydistance < 300)
+						 break;
+						 
+					 case 3:
+					 	 return ($scope.mydistance >= 300 && $scope.mydistance < 400)
+					 	 break;
+					 	 
+	     		     case 4:
+					 	 return ($scope.mydistance >= 400 && $scope.mydistance < 500)
+					 	 break;
+						 
+					 case 5:
+						 return ($scope.mydistance >= 500 && $scope.mydistance < 600)
+						 break;
+						 
+					 case 6:
+						 return ($scope.mydistance >= 600 && $scope.mydistance < 700)
+						 break;
+						 
+					 case 7:
+						 return ($scope.mydistance >= 700 && $scope.mydistance < 800)
+						 break;
+						 
+					 case 8:
+						 return ($scope.mydistance >= 800 && $scope.mydistance < 900)
+						 break;
+						 
+					 case 9:
+						 return ($scope.mydistance >= 900 && $scope.mydistance < 1000)
+						 break;
+						 
+					 default:
+						 break;
+						 					 
+				 }
+			 }
+			 
+			 $scope.testeshowenemy= function(posicao){
+				 switch(posicao){
+					 case 0:
+						 return ($scope.enemyDistance < 100)
+						 break;
+						 
+				     case 1:
+						 return ($scope.enemyDistance >= 100 && $scope.enemyDistance < 200)
+						 break;
+						
+					 case 2:
+						 return ($scope.enemyDistance >= 200 && $scope.enemyDistance < 300)
+						 break;
+						 
+					 case 3:
+					 	 return ($scope.enemyDistance >= 300 && $scope.enemyDistance < 400)
+					 	 break;
+					 	 
+	     		     case 4:
+					 	 return ($scope.enemyDistance >= 400 && $scope.enemyDistance < 500)
+					 	 break;
+						 
+					 case 5:
+						 return ($scope.enemyDistance >= 500 && $scope.enemyDistance < 600)
+						 break;
+						 
+					 case 6:
+						 return ($scope.enemyDistance >= 600 && $scope.enemyDistance < 700)
+						 break;
+						 
+					 case 7:
+						 return ($scope.enemyDistance >= 700 && $scope.enemyDistance < 800)
+						 break;
+						 
+					 case 8:
+						 return ($scope.enemyDistance >= 800 && $scope.enemyDistance < 900)
+						 break;
+						 
+					 case 9:
+						 return ($scope.enemyDistance >= 900 && $scope.enemyDistance < 1000)
+						 break;
+						 
+					 default:
+						 break;
+						 					 
+				 }
+			 }
+			 
+			 	
+    });
+
+	
+
+	
+
+</script>
+	
+</head>
+
+<body ng-app="game" ng-controller="control" ng-init = "getRules()">
+	<h1>{{error}}</h1>
+	<center>
+		<div id='gamediv'></div>
+		<div id="bar">
+			<div class="item" ng-repeat= "x in forsimulator track by $index">
+					<img ng-src="nave1.png"  alt="you" ng-show= "testeshowmy($index)"> 
+					<img ng-src="nave2.png"  alt="enemy" ng-show= "testeshowenemy($index)"> 
+			</div>
+		</div>
+	</center>
+</body>
+</html>
